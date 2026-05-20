@@ -1,0 +1,13 @@
+# Generated reports (keep directory via .gitkeep)
+reports/*.md
+reports/*.txt
+
+# Runtime / temp files
+*.tmp
+*.swp
+*~
+.DS_Store
+
+# Never commit real logs
+auth.log
+/var/
