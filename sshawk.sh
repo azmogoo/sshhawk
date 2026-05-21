@@ -165,6 +165,68 @@ collect_logs() {
       ;;
   esac
 }
+
+extract_failed_attempts() {
+  local in_file="$1"
+  local out_file="$2"
+
+  # common openssh failure patterns
+  local patterns
+  patterns='Failed password for|Failed publickey|Invalid user|authentication failure|Unable to negotiate|Disconnected from authenticating user|Connection closed by.*preauth'
+
+  : > "${out_file}"
+
+  # ssh/sshd lines only; || true avoids errexit on no match
+  grep -Ei "${patterns}" "${in_file}" 2>/dev/null | grep -E 'sshd|ssh\[' >> "${out_file}" || true
+}
+
+parse_log_line() {
+  local line="$1"
+  local ip=""
+  local user="unknown"
+  local ts=""
+
+  # syslog ts (best effort): "May 20 08:12:01"
+  ts="$(printf '%s' "${line}" | awk '{print $1, $2, $3}' | head -n 1)"
+
+  # ipv4 in line
+  if [[ "${line}" =~ ([0-9]{1,3}\.){3}[0-9]{1,3} ]]; then
+    ip="${BASH_REMATCH[0]}"
+  fi
+
+  # username from common failure formats
+  if [[ "${line}" =~ [Ff]ailed[[:space:]]+password[[:space:]]+for[[:space:]]+invalid[[:space:]]+user[[:space:]]+([^[:space:]]+) ]]; then
+    user="${BASH_REMATCH[1]}"
+  elif [[ "${line}" =~ [Ff]ailed[[:space:]]+password[[:space:]]+for[[:space:]]+([^[:space:]]+) ]]; then
+    user="${BASH_REMATCH[1]}"
+  elif [[ "${line}" =~ [Ff]ailed[[:space:]]+publickey[[:space:]]+for[[:space:]]+invalid[[:space:]]+user[[:space:]]+([^[:space:]]+) ]]; then
+    user="${BASH_REMATCH[1]}"
+  elif [[ "${line}" =~ [Ff]ailed[[:space:]]+publickey[[:space:]]+for[[:space:]]+([^[:space:]]+) ]]; then
+    user="${BASH_REMATCH[1]}"
+  elif [[ "${line}" =~ [Ii]nvalid[[:space:]]+user[[:space:]]+([^[:space:]]+) ]]; then
+    user="${BASH_REMATCH[1]}"
+  elif [[ "${line}" =~ user=([^[:space:]]+) ]]; then
+    # auth failure lines: user=...
+    user="${BASH_REMATCH[1]}"
+  fi
+
+  if [[ -n "${ip}" ]]; then
+    printf '%s|%s|%s\n' "${ip}" "${user}" "${ts}"
+  fi
+}
+
+aggregate_ips() {
+  local parsed_file="$1"
+  local out_file="$2"
+
+  : > "${out_file}"
+  if [[ ! -s "${parsed_file}" ]]; then
+    return 0
+  fi
+
+  # out: ip|count|first_ts|last_ts
+  awk -F'|' '
+    {
   while [[ $# -gt 0 ]]; do
     case "$1" in
       --source)
@@ -221,15 +283,29 @@ main() {
   parse_args "$@"
   load_config
   detect_log_source
+  : "${TOP_N:=${DEFAULT_TOP}}"
 
   local tmpdir
   tmpdir="$(mktemp -d)"
   trap 'rm -rf "${tmpdir}"' EXIT
   local raw="${tmpdir}/raw.log"
   local failed="${tmpdir}/failed.log"
+  local parsed="${tmpdir}/parsed.tsv"
+  local stats="${tmpdir}/ip_stats.tsv"
+
   collect_logs "${raw}"
   extract_failed_attempts "${raw}" "${failed}"
-  log_info "failed ssh lines: $(wc -l < "${failed}" | tr -d ' ')"
+  : > "${parsed}"
+  if [[ -s "${failed}" ]]; then
+    while IFS= read -r line; do
+      [[ -z "${line}" ]] && continue
+      parse_log_line "${line}" >> "${parsed}" || true
+    done < "${failed}"
+  fi
+  aggregate_ips "${parsed}" "${stats}"
+  log_info "failed attempts: $(wc -l < "${parsed}" | tr -d ' ')"
+  log_info "top ip:"
+  head -n 3 "${stats}" || true
 }
 
 main "$@"
