@@ -40,6 +40,47 @@ USERNAMES_FILE=""
 
 declare -A GEO_CACHE
 
+print_help() {
+  cat <<'EOF'
+SSHawk — A minimalist SSH log analyzer and reporting tool
+
+Usage:
+  ./sshawk.sh [options]
+
+Options:
+  --source authlog        Analyze /var/log/auth.log
+  --source journalctl     Analyze journalctl -u ssh or journalctl -u sshd depending on the system
+  --file PATH             Analyze a custom log file (useful for testing)
+  --top N                 Display the top N attacking IP addresses (default from config)
+  --no-geo                Disable geolocation (no curl calls)
+  --output PATH           Save the report to a custom path
+  --format text           Generate a text report
+  --format markdown       Generate a markdown report (default)
+  --since "DATE"         Filter journalctl logs since DATE (journalctl only)
+  --quiet                 Reduce terminal output
+  --debug                 Show debug information
+  --help                  Show this help message
+
+Examples:
+  ./sshawk.sh --file samples/sample-auth.log
+  ./sshawk.sh --source authlog --top 5
+  sudo ./sshawk.sh --source journalctl --since "2026-05-01"
+  ./sshawk.sh --file samples/sample-auth.log --no-geo --format text
+EOF
+}
+
+log_info() {
+  if [[ "${QUIET}" -eq 0 ]]; then
+    printf '%s\n' "$*"
+  fi
+}
+
+log_debug() {
+  if [[ "${DEBUG}" -eq 1 ]]; then
+    printf '[debug] %s\n' "$*" >&2
+  fi
+}
+
 load_config() {
   local conf="${SCRIPT_DIR}/config/sshawk.conf"
   if [[ ! -f "${conf}" ]]; then
@@ -227,6 +268,27 @@ aggregate_ips() {
   # out: ip|count|first_ts|last_ts
   awk -F'|' '
     {
+      ip=$1; ts=$3
+      count[ip]++
+      if (!(ip in first)) first[ip]=ts
+      last[ip]=ts
+    }
+    END {
+      for (ip in count) {
+        printf "%s|%d|%s|%s\n", ip, count[ip], first[ip], last[ip]
+      }
+    }
+  ' "${parsed_file}" | sort -t'|' -k2 -nr > "${out_file}"
+}
+
+extract_usernames() {
+  local parsed_file="$1"
+  local out_file="$2"
+
+  : > "${out_file}"
+
+  if [[ ! -s "${parsed_file}" ]]; then
+    return 0
   while [[ $# -gt 0 ]]; do
     case "$1" in
       --source)
@@ -292,6 +354,7 @@ main() {
   local failed="${tmpdir}/failed.log"
   local parsed="${tmpdir}/parsed.tsv"
   local stats="${tmpdir}/ip_stats.tsv"
+  local users="${tmpdir}/users.tsv"
 
   collect_logs "${raw}"
   extract_failed_attempts "${raw}" "${failed}"
@@ -303,9 +366,9 @@ main() {
     done < "${failed}"
   fi
   aggregate_ips "${parsed}" "${stats}"
-  log_info "failed attempts: $(wc -l < "${parsed}" | tr -d ' ')"
-  log_info "top ip:"
-  head -n 3 "${stats}" || true
+  extract_usernames "${parsed}" "${users}"
+  log_info "top usernames:"
+  head -n 3 "${users}" || true
 }
 
 main "$@"
