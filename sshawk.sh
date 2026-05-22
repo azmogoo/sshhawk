@@ -289,6 +289,62 @@ extract_usernames() {
 
   if [[ ! -s "${parsed_file}" ]]; then
     return 0
+  fi
+
+  # out: count|username
+  awk -F'|' '$2 != "" && $2 != "unknown" {print $2}' "${parsed_file}" \
+    | sort \
+    | uniq -c \
+    | sort -nr \
+    | head -n "${TOP_N}" \
+    | awk '{print $1 "|" $2}' \
+    > "${out_file}"
+}
+
+geolocate_ip() {
+  local ip="$1"
+  local url response status country region city isp query
+
+  if [[ "${NO_GEO}" -eq 1 ]]; then
+    echo "Unknown|Unknown|Unknown|Unknown|Unknown"
+    return 0
+  fi
+
+  if [[ -n "${GEO_CACHE[${ip}]+x}" ]]; then
+    echo "${GEO_CACHE[${ip}]}"
+    return 0
+  fi
+
+  # skip private/loopback ips
+  if [[ "${ip}" =~ ^10\. ]] || \
+     [[ "${ip}" =~ ^192\.168\. ]] || \
+     [[ "${ip}" =~ ^127\. ]] || \
+     [[ "${ip}" =~ ^172\.(1[6-9]|2[0-9]|3[0-1])\. ]] || \
+     [[ "${ip}" =~ ^169\.254\. ]]; then
+    GEO_CACHE["${ip}"]="Local/Private|N/A|N/A|N/A|N/A"
+    echo "${GEO_CACHE[${ip}]}"
+    return 0
+  fi
+
+  url="${GEO_API_URL}/${ip}?fields=status,country,regionName,city,isp,query"
+  log_debug "Geolocating ${ip} via API"
+
+  response="$(curl -sS --max-time 10 "${url}" 2>/dev/null || true)"
+
+  # parse json status field
+  status="$(printf '%s' "${response}" | sed -n 's/.*"status"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' | head -n 1 || true)"
+  if [[ "${status}" != "success" ]]; then
+    GEO_CACHE["${ip}"]="Unknown|Unknown|Unknown|Unknown|${ip}"
+    sleep "${GEO_DELAY}" || true
+    echo "${GEO_CACHE[${ip}]}"
+    return 0
+  fi
+
+  country="$(printf '%s' "${response}" | sed -n 's/.*"country"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' | head -n 1 || true)"
+  region="$(printf '%s' "${response}" | sed -n 's/.*"regionName"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' | head -n 1 || true)"
+  city="$(printf '%s' "${response}" | sed -n 's/.*"city"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' | head -n 1 || true)"
+  isp="$(printf '%s' "${response}" | sed -n 's/.*"isp"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' | head -n 1 || true)"
+  query="$(printf '%s' "${response}" | sed -n 's/.*"query"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' | head -n 1 || true)"
   while [[ $# -gt 0 ]]; do
     case "$1" in
       --source)
@@ -354,7 +410,6 @@ main() {
   local failed="${tmpdir}/failed.log"
   local parsed="${tmpdir}/parsed.tsv"
   local stats="${tmpdir}/ip_stats.tsv"
-  local users="${tmpdir}/users.tsv"
 
   collect_logs "${raw}"
   extract_failed_attempts "${raw}" "${failed}"
@@ -366,9 +421,9 @@ main() {
     done < "${failed}"
   fi
   aggregate_ips "${parsed}" "${stats}"
-  extract_usernames "${parsed}" "${users}"
-  log_info "top usernames:"
-  head -n 3 "${users}" || true
+  local ip
+  ip="$(head -n 1 "${stats}" | cut -d'|' -f1)"
+  [[ -n "${ip}" ]] && log_info "geo ${ip}: $(geolocate_ip "${ip}")"
 }
 
 main "$@"
