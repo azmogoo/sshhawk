@@ -595,7 +595,7 @@ main() {
   local tmpdir
   tmpdir="$(mktemp -d)"
   # nounset-safe cleanup on exit
-  trap 'rm -rf "${tmpdir}"' EXIT
+  trap '[[ -n "${tmpdir:-}" ]] && rm -rf "${tmpdir}" 2>/dev/null || true' EXIT
 
   RAW_LOG_FILE="${tmpdir}/raw.log"
   FAILED_LOG_FILE="${tmpdir}/failed.log"
