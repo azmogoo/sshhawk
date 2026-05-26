@@ -57,7 +57,7 @@ Examples:
 
 ```bash
 ls -la reports/
-less reports/ssh_report_*.md
+head -40 "$(ls -1t reports/ssh_report_*.md | head -1)"
 ```
 
 You should see:

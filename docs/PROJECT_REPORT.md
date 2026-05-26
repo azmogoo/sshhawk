@@ -1,89 +1,186 @@
-# SSHawk Project Report (AP3 Linux)
+# SSHawk — Project Report
+
+**ISEN AP3 — Introduction to Linux**  
+**Repository:** https://github.com/azmogoo/sshhawk
+
+## Authors
+
+- Arthur WALLOIS
+- Victor DAUVIN
+- Francois CARPENTIER
+
+---
 
 ## Introduction
 
-In this project, we built **SSHawk**, a minimalist SSH log analyzer written mainly in Bash. The goal is to detect failed SSH authentication attempts from Linux logs, aggregate them by source IP address and username, and generate a clean security report. Optionally, the tool can geolocate source IPs using a public API.
+For our Linux assignment we built **SSHawk**, a small Bash script that reads SSH authentication logs and highlights failed login attempts. The idea is simple: extract source IPs and usernames from the logs, count how often they appear, and write a short security report. We can also geolocate IPs with `curl`, but that part is optional (`--no-geo`).
+
+The script only **reads** logs. It does not change SSH settings or block anyone — it is an analysis tool for learning and basic monitoring.
+
+---
 
 ## Why we chose this subject
 
-SSH is a common entry point to Linux systems. Attackers often try many username/password combinations or probe for open SSH services. Even when a system is not compromised, failed login attempts can be a strong signal of scanning or brute-force attacks.
+SSH is often targeted by bots and brute-force scripts. Even when nothing is compromised, you can see many `Failed password` lines in `/var/log/auth.log`. That made a good exercise for grep/awk and Bash, and we could still add something useful with `curl` for geolocation.
 
-This subject combines several course topics: reading system logs, using text-processing tools, writing Bash scripts with functions and parameters, and integrating a simple network call with `curl`.
+---
 
 ## Linux concepts used
 
-- Shell scripting with functions and command-line arguments
-- Reading system logs:
-  - `/var/log/auth.log`
-  - `journalctl` for service logs (`ssh` / `sshd`)
-- Using classic text tools: `grep`, `awk`, `sed`, `sort`, `uniq`, `head`, `wc`
-- Handling program flow with conditions and loops
-- File and permission checks (to fail safely when logs are unreadable)
+We used standard command-line tools and Bash features expected in AP3:
+
+- functions, arguments, conditions, loops
+- `grep`, `awk`, `sed`, `sort`, `uniq`, `head`, `wc`
+- reading `/var/log/auth.log` or `journalctl -u ssh/sshd`
+- file permission checks (e.g. auth.log with `sudo`)
+- `curl` for a public geolocation API
+- temporary files and pipelines
+
+---
 
 ## How SSH logs work
 
-OpenSSH records authentication-related events in logs. Typical patterns include:
+OpenSSH logs authentication events in syslog format. Lines we look for include:
 
-- `Failed password for ... from <IP> ...`
-- `Failed publickey for ... from <IP> ...`
+- `Failed password for ... from <IP>`
 - `Invalid user ... from <IP>`
-- `authentication failure ... rhost=<IP> user=<username>`
+- `authentication failure ... user=<username>`
 
-These lines contain the source IP address and sometimes the attempted username. By filtering only failure-related patterns, we can estimate which IPs are most active.
+These messages usually contain an IPv4 address and sometimes a username. We filter failure-related lines, then parse them line by line.
 
-## How the script extracts data
+---
 
-SSHawk follows these steps:
+## How SSHawk works
 
-1. **Collect logs** from a chosen source:
-   - authlog: reads `/var/log/auth.log`
-   - journalctl: runs `journalctl -u ssh` or `journalctl -u sshd`
-   - file: reads the provided test file
-2. **Extract failed events** by searching for known failure messages.
-3. **Parse each failed line** to extract:
-   - source IP address (IPv4)
-   - attempted username (when present in the line)
-   - timestamp (best-effort syslog parsing)
-4. **Aggregate**:
-   - counts failed attempts per IP
-   - tracks first and last timestamps per IP
-   - counts usernames to show the top targets
+**1. Collect logs** — depending on `--source`:
 
-## How geolocation works with `curl`
+- `authlog` → `/var/log/auth.log`
+- `journalctl` → `ssh` or `sshd` unit (we try both)
+- `file` → path given on the command line (we use `samples/sample-auth.log` for tests)
 
-When geolocation is enabled (default), SSHawk geolocates each top attacking IP using:
+**2. Find failures** — `grep` on common OpenSSH failure patterns, limited to `sshd` lines.
 
-`http://ip-api.com/json/<IP>?fields=status,country,regionName,city,isp,query`
+**3. Parse** — for each line: IP, username (when possible), timestamp (best effort).
 
-Key details:
+**4. Aggregate** — count attempts per IP, first/last timestamp per IP, top usernames.
 
-- Geolocation is cached in-memory during one execution (so the same IP is not queried twice).
-- A short delay is added between API calls to reduce the chance of rate limiting.
-- If the API fails or returns an error status, the tool uses `Unknown` instead of crashing.
+**5. Geolocate (optional)** — `ip-api.com` via `curl`, with a small delay and a cache so we do not query the same IP twice. On error we print `Unknown`.
 
-## Screenshots / placeholders
+**6. Report** — default output: `reports/ssh_report_YYYY-MM-DD_HH-MM-SS.md`. Text format is available with `--format text`.
 
-Placeholders for demonstration:
+---
 
-- Screenshot 1: running SSHawk on the sample log
-- Screenshot 2: generated Markdown report output
-- Screenshot 3: running SSHawk on real logs (with sudo)
+## Demonstration
 
-## Problems encountered
+Screenshots below were taken on our Ubuntu VM (SSH session). Files are in `docs/screenshots/`.
 
-- `journalctl` unit names differ between systems (`ssh` vs `sshd`), so we added a unit detection step.
-- Different failure formats require heuristic parsing of usernames (for example `user=...` inside `authentication failure` lines).
-- Geolocation can fail due to network restrictions, so graceful fallback to `Unknown` is necessary.
+### Help
+
+```bash
+./sshawk.sh --help
+```
+
+![help](screenshots/capture1.png)
+
+### Run on the sample log
+
+```bash
+./sshawk.sh --file samples/sample-auth.log --no-geo
+```
+
+We get 6 failed attempts and a new report under `reports/`.
+
+![sample run](screenshots/capture2.png)
+
+### Test script
+
+```bash
+./tests/test_sample_log.sh
+```
+
+Checks that the report exists and contains the expected IPs and totals.
+
+![test](screenshots/capture3.png)
+
+### Reports folder
+
+```bash
+ls -la reports/
+```
+
+Each run creates a timestamped `.md` file (ignored by git).
+
+![reports list](screenshots/capture4a.png)
+
+### Markdown report (one file)
+
+```bash
+head -40 "$(ls -1t reports/ssh_report_*.md | head -1)"
+```
+
+In the terminal the markdown table pipes may look misaligned — that is normal. The file renders correctly on GitHub or in a markdown preview.
+
+![markdown report](screenshots/capture4b.png)
+
+### Text report
+
+```bash
+./sshawk.sh --file samples/sample-auth.log --no-geo --format text --output /tmp/sshawk_demo.txt
+cat /tmp/sshawk_demo.txt
+```
+
+Easier to read directly in the shell.
+
+![text report](screenshots/capture5.png)
+
+### Debug mode
+
+```bash
+./sshawk.sh --file samples/sample-auth.log --no-geo --debug
+```
+
+![debug](screenshots/capture6.png)
+
+---
+
+## Results on the sample log
+
+The sample file uses fake IPs only (documentation ranges). On our tests:
+
+| | |
+|---|---|
+| Total failed attempts | 6 |
+| Unique IPs | 3 |
+| Main targets | admin (3), root (2), deploy (1) |
+| Top IP | 203.0.113.45 (3 attempts) |
+
+---
+
+## Problems we ran into
+
+- On some systems the journal unit is `ssh`, on others `sshd` — we check which one works.
+- Usernames are not always in the same format (`Failed password` vs `authentication failure` with `user=`).
+- With `set -u`, our `trap` on exit had to use `${tmpdir:-}` or the script crashed at the end.
+- Geolocation sometimes returns `Unknown` (network/API) — `--no-geo` is fine for demos and tests.
+- Using `head reports/*.md` prints every report at once; for a clean screenshot we use a **single** file (see command above).
+
+---
+
+## Privacy
+
+Real auth logs can contain sensitive data. We only committed a **fake** sample log. Do not push real logs or production reports to a public repo.
+
+---
 
 ## Possible improvements
 
-- Add support for more log patterns and improve false-positive filtering.
-- Add IPv6 parsing and reporting.
-- Stream logs to reduce memory usage on large servers.
-- Provide more structured output (e.g., JSON) for integration with other security tools.
-- Add an optional scheduled run using `cron` or a `systemd` timer.
+- IPv6 support
+- more log patterns (careful with false positives)
+- JSON output
+- optional cron/systemd timer for regular reports
+
+---
 
 ## Conclusion
 
-SSHawk is a functional and educational tool that demonstrates core Linux command-line skills. It can quickly turn SSH failure logs into a report useful for monitoring and early warning, while remaining safe by design (read-only log analysis, no configuration changes).
-
+SSHawk does what we wanted for the course: practice Linux CLI tools, parse SSH logs, and produce a readable report. Tests on the sample file pass, and the script can also be run on real logs with `sudo` when needed. The code and documentation are on GitHub: https://github.com/azmogoo/sshhawk

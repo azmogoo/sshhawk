@@ -127,10 +127,13 @@ sshhawk/
     └── test_sample_log.sh
 ```
 
-## authors
+## Authors
 
-- student 1: firstname lastname
-- student 2: firstname lastname
+- Arthur WALLOIS
+- Victor DAUVIN
+- Francois CARPENTIER
+
+Project report: [`docs/PROJECT_REPORT.md`](docs/PROJECT_REPORT.md)
 
 ## Limitations
 
