@@ -47,7 +47,7 @@ SSHawk — A minimalist SSH log analyzer and reporting tool
 Usage:
   ./sshawk.sh [options]
 
-Options:
+options:
   --source authlog        Analyze /var/log/auth.log
   --source journalctl     Analyze journalctl -u ssh or journalctl -u sshd depending on the system
   --file PATH             Analyze a custom log file (useful for testing)
@@ -500,7 +500,10 @@ RECO
       echo
       echo "Top targeted usernames:"
       if [[ -s "${usernames_file}" ]]; then
-        nl -ba "${usernames_file}" | sed 's/^[[:space:]]*//' | awk -F'|' '{print "  " $2 " (" $1 " attempts)"}'
+        while IFS='|' read -r ucount uname; do
+          [[ -z "${uname}" ]] && continue
+          echo "  ${uname} (${ucount} attempts)"
+        done < "${usernames_file}"
       else
         echo "  (none)"
       fi
