@@ -3,6 +3,7 @@
 # sshawk - minimalist ssh log analyzer
 #
 
+# stop on errors, unset vars, and pipe failures
 set -o errexit
 set -o nounset
 set -o pipefail
@@ -38,8 +39,10 @@ PARSED_FILE=""
 IP_STATS_FILE=""
 USERNAMES_FILE=""
 
+# geo results cached per ip during one run
 declare -A GEO_CACHE
 
+# show usage and exit
 print_help() {
   cat <<'EOF'
 sshawk - minimalist ssh log analyzer
@@ -69,18 +72,21 @@ Examples:
 EOF
 }
 
+# normal messages (skipped with --quiet)
 log_info() {
   if [[ "${QUIET}" -eq 0 ]]; then
     printf '%s\n' "$*"
   fi
 }
 
+# debug lines go to stderr
 log_debug() {
   if [[ "${DEBUG}" -eq 1 ]]; then
     printf '[debug] %s\n' "$*" >&2
   fi
 }
 
+# read config/sshawk.conf (optional)
 load_config() {
   local conf="${SCRIPT_DIR}/config/sshawk.conf"
   if [[ ! -f "${conf}" ]]; then
@@ -102,6 +108,7 @@ load_config() {
   : "${JOURNAL_UNITS:=ssh sshd}"
 }
 
+# only check tools we actually need for this run
 check_dependencies() {
   local missing=()
   local cmd
@@ -133,6 +140,7 @@ check_dependencies() {
   fi
 }
 
+# set SOURCE_MODE from --file, --source, or config default
 detect_log_source() {
   # cli wins, else config default
   if [[ -n "${LOG_FILE}" ]]; then
@@ -153,9 +161,11 @@ resolve_journal_unit() {
       return 0
     fi
   done
+  # fallback if nothing responds
   echo "ssh"
 }
 
+# copy logs into a temp file for the rest of the pipeline
 collect_logs() {
   local out_file="$1"
 
@@ -166,6 +176,7 @@ collect_logs() {
 
   case "${SOURCE_MODE}" in
     authlog)
+      # usually needs root
       if [[ ! -r "/var/log/auth.log" ]]; then
         printf 'error: cannot read /var/log/auth.log (try sudo)\n' >&2
         exit 1
@@ -174,6 +185,7 @@ collect_logs() {
       ;;
 
     journalctl)
+      # ssh or sshd depending on the distro
       local journal_unit
       journal_unit="$(resolve_journal_unit)"
       log_debug "Using journalctl unit: ${journal_unit}"
@@ -186,6 +198,7 @@ collect_logs() {
       ;;
 
     file)
+      # default to sample log when no path given
       if [[ -z "${LOG_FILE}" ]]; then
         LOG_FILE="${SCRIPT_DIR}/${DEFAULT_SAMPLE_FILE}"
       fi
@@ -207,6 +220,7 @@ collect_logs() {
   esac
 }
 
+# grep ssh-related failure lines from raw log
 extract_failed_attempts() {
   local in_file="$1"
   local out_file="$2"
@@ -221,6 +235,7 @@ extract_failed_attempts() {
   grep -Ei "${patterns}" "${in_file}" 2>/dev/null | grep -E 'sshd|ssh\[' >> "${out_file}" || true
 }
 
+# one log line -> "ip|user|timestamp" (or nothing if no ip)
 parse_log_line() {
   local line="$1"
   local ip=""
@@ -235,7 +250,7 @@ parse_log_line() {
     ip="${BASH_REMATCH[0]}"
   fi
 
-  # username from common failure formats
+  # try several regexes (order matters: invalid user before plain user)
   if [[ "${line}" =~ [Ff]ailed[[:space:]]+password[[:space:]]+for[[:space:]]+invalid[[:space:]]+user[[:space:]]+([^[:space:]]+) ]]; then
     user="${BASH_REMATCH[1]}"
   elif [[ "${line}" =~ [Ff]ailed[[:space:]]+password[[:space:]]+for[[:space:]]+([^[:space:]]+) ]]; then
@@ -256,6 +271,7 @@ parse_log_line() {
   fi
 }
 
+# count attempts per ip, keep first/last timestamp
 aggregate_ips() {
   local parsed_file="$1"
   local out_file="$2"
@@ -265,7 +281,7 @@ aggregate_ips() {
     return 0
   fi
 
-  # out: ip|count|first_ts|last_ts
+  # awk groups by ip, sort puts highest count first
   awk -F'|' '
     {
       ip=$1; ts=$3
@@ -281,6 +297,7 @@ aggregate_ips() {
   ' "${parsed_file}" | sort -t'|' -k2 -nr > "${out_file}"
 }
 
+# top usernames: sort | uniq -c | sort -nr | head
 extract_usernames() {
   local parsed_file="$1"
   local out_file="$2"
@@ -291,7 +308,6 @@ extract_usernames() {
     return 0
   fi
 
-  # out: count|username
   awk -F'|' '$2 != "" && $2 != "unknown" {print $2}' "${parsed_file}" \
     | sort \
     | uniq -c \
@@ -301,6 +317,7 @@ extract_usernames() {
     > "${out_file}"
 }
 
+# returns "country|region|city|isp|query" for report tables
 geolocate_ip() {
   local ip="$1"
   local url response status country region city isp query
@@ -310,12 +327,13 @@ geolocate_ip() {
     return 0
   fi
 
+  # already looked up this ip in this run
   if [[ -n "${GEO_CACHE[${ip}]+x}" ]]; then
     echo "${GEO_CACHE[${ip}]}"
     return 0
   fi
 
-  # skip private/loopback ips
+  # skip private/loopback ips (no api call)
   if [[ "${ip}" =~ ^10\. ]] || \
      [[ "${ip}" =~ ^192\.168\. ]] || \
      [[ "${ip}" =~ ^127\. ]] || \
@@ -331,10 +349,11 @@ geolocate_ip() {
 
   response="$(curl -sS --max-time 10 "${url}" 2>/dev/null || true)"
 
-  # parse json status field
+  # simple sed extract (no jq required)
   status="$(printf '%s' "${response}" | sed -n 's/.*"status"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' | head -n 1 || true)"
   if [[ "${status}" != "success" ]]; then
     GEO_CACHE["${ip}"]="Unknown|Unknown|Unknown|Unknown|${ip}"
+    # small pause to avoid rate limits even on failure
     sleep "${GEO_DELAY}" || true
     echo "${GEO_CACHE[${ip}]}"
     return 0
@@ -357,6 +376,7 @@ geolocate_ip() {
   echo "${GEO_CACHE[${ip}]}"
 }
 
+# write markdown or plain text report to disk
 generate_report() {
   local parsed_file="$1"
   local ip_stats_file="$2"
@@ -407,6 +427,7 @@ RECO
   mkdir -p "$(dirname "${report_path}")"
 
   if [[ "${REPORT_FORMAT}" == "markdown" ]]; then
+    # md tables (best viewed in github / preview, not raw cat)
     {
       echo "# ${PROJECT_NAME} Security Report"
       echo
@@ -431,6 +452,7 @@ RECO
           [[ -z "${ip}" ]] && continue
           rank=$((rank + 1))
           [[ "${rank}" -gt "${TOP_N}" ]] && break
+          # geo called here (can be slow without --no-geo)
           geo="$(geolocate_ip "${ip}")"
           IFS='|' read -r country region city isp query <<< "${geo}"
           echo "| ${rank} | ${ip} | ${count} | ${first} | ${last} | ${country} | ${region} | ${city} | ${isp} |"
@@ -471,6 +493,7 @@ RECO
       echo "_Report generated by SSHawk. Educational use only._"
     } > "${report_path}"
   else
+    # text format: easier to read in the terminal
     {
       echo "${PROJECT_NAME} Security Report"
       echo "${PROJECT_SUBTITLE}"
@@ -519,6 +542,7 @@ RECO
   fi
 }
 
+# map --flags to global variables
 parse_args() {
   while [[ $# -gt 0 ]]; do
     case "$1" in
@@ -575,7 +599,6 @@ parse_args() {
 main() {
   parse_args "$@"
   load_config
-
   detect_log_source
 
   # cli defaults
@@ -600,6 +623,7 @@ main() {
   # nounset-safe cleanup on exit
   trap '[[ -n "${tmpdir:-}" ]] && rm -rf "${tmpdir}" 2>/dev/null || true' EXIT
 
+  # temp files for each pipeline stage
   RAW_LOG_FILE="${tmpdir}/raw.log"
   FAILED_LOG_FILE="${tmpdir}/failed.log"
   PARSED_FILE="${tmpdir}/parsed.tsv"
@@ -609,6 +633,7 @@ main() {
   collect_logs "${RAW_LOG_FILE}"
   extract_failed_attempts "${RAW_LOG_FILE}" "${FAILED_LOG_FILE}"
 
+  # build parsed.tsv: one row per failed attempt with an ip
   : > "${PARSED_FILE}"
   if [[ -s "${FAILED_LOG_FILE}" ]]; then
     while IFS= read -r line; do
@@ -620,7 +645,6 @@ main() {
 
   aggregate_ips "${PARSED_FILE}" "${IP_STATS_FILE}"
   extract_usernames "${PARSED_FILE}" "${USERNAMES_FILE}"
-
   generate_report "${PARSED_FILE}" "${IP_STATS_FILE}" "${USERNAMES_FILE}" "${OUTPUT_PATH}"
 
   log_info ""
