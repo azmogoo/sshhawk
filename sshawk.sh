@@ -42,9 +42,9 @@ declare -A GEO_CACHE
 
 print_help() {
   cat <<'EOF'
-SSHawk — A minimalist SSH log analyzer and reporting tool
+sshawk - minimalist ssh log analyzer
 
-Usage:
+usage:
   ./sshawk.sh [options]
 
 options:
