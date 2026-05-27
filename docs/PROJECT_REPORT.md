@@ -157,31 +157,24 @@ The sample file uses fake IPs only (documentation ranges). On our tests:
 
 ---
 
-## Extra features (added later)
+## Extra features
 
-Beyond the basic demo, we also added:
+We also implemented:
 
-- **More failure patterns** in `grep` (keyboard-interactive, max auth attempts, etc.)
+- **More failure patterns** in `grep` (keyboard-interactive, max auth attempts, disconnect messages, etc.)
 - **IPv6 parsing** via `extract_ip_from_line()` (`from … port` and `rhost=`)
-- **Optional scheduling** — see `docs/SCHEDULING.md`, `scripts/run_scheduled_report.sh`, and `systemd/sshawk-report.timer`
+- **Optional scheduling** — `docs/SCHEDULING.md`, `scripts/run_scheduled_report.sh`, `systemd/sshawk-report.timer`
 
-No extra screenshot is required for grading if the main demo above is already included; optional captures are listed in the next section.
-
-### Optional screenshots (improvements)
+### IPv6 and updated totals (capture 7)
 
 ```bash
 ./sshawk.sh --file samples/sample-auth.log --no-geo --quiet
-grep -E "2001:db8|Total failed" reports/ssh_report_*.md | tail -5
+head -25 "$(ls -1t reports/ssh_report_*.md | head -1)"
 ```
 
-Shows IPv6 and updated totals in the generated report.
+The report shows **7** failed attempts, **4** unique IPs, including documentation IPv6 address `2001:db8::1`.
 
-```bash
-cat docs/SCHEDULING.md | head -25
-systemctl list-timers 2>/dev/null | grep sshawk || echo "(timer not installed on demo vm)"
-```
-
-Shows cron/systemd integration documentation (timer install is optional on the lab VM).
+![ipv6 and updated report totals](screenshots/capture7.png)
 
 ---
 
@@ -211,4 +204,4 @@ Real auth logs can contain sensitive data. We only committed a **fake** sample l
 
 ## Conclusion
 
-SSHawk does what we wanted for the course: practice Linux CLI tools, parse SSH logs, and produce a readable report. Tests on the sample file pass, and the script can also be run on real logs with `sudo` when needed. The code and documentation are on GitHub: https://github.com/azmogoo/sshhawk
+SSHawk meets our AP3 Linux goals: Bash scripting, log analysis with standard CLI tools, optional geolocation, and clear reporting. All planned features for this project are implemented; tests on the sample file pass. The repository and documentation are on GitHub: https://github.com/azmogoo/sshhawk
