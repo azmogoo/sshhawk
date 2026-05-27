@@ -1,0 +1,8 @@
+[Unit]
+Description=SSHawk one-shot SSH log security report
+After=network-online.target
+
+[Service]
+Type=oneshot
+WorkingDirectory=/home/ubuntu/sshhawk
+ExecStart=/home/ubuntu/sshhawk/scripts/run_scheduled_report.sh
