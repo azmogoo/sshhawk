@@ -88,7 +88,7 @@ Screenshots below were taken on our Ubuntu VM (SSH session). Files are in `docs/
 ./sshawk.sh --file samples/sample-auth.log --no-geo
 ```
 
-We get 6 failed attempts and a new report under `reports/`.
+We get 7 failed attempts (including one IPv6 line) and a new report under `reports/`.
 
 ![sample run](screenshots/capture2.png)
 
@@ -149,10 +149,39 @@ The sample file uses fake IPs only (documentation ranges). On our tests:
 
 | | |
 |---|---|
-| Total failed attempts | 6 |
-| Unique IPs | 3 |
-| Main targets | admin (3), root (2), deploy (1) |
+| Total failed attempts | 7 |
+| Unique IPs | 4 |
+| Main targets | admin (3), root (2), deploy (1), ipv6user (1) |
 | Top IP | 203.0.113.45 (3 attempts) |
+| IPv6 example | 2001:db8::1 (documentation range) |
+
+---
+
+## Extra features (added later)
+
+Beyond the basic demo, we also added:
+
+- **More failure patterns** in `grep` (keyboard-interactive, max auth attempts, etc.)
+- **IPv6 parsing** via `extract_ip_from_line()` (`from … port` and `rhost=`)
+- **Optional scheduling** — see `docs/SCHEDULING.md`, `scripts/run_scheduled_report.sh`, and `systemd/sshawk-report.timer`
+
+No extra screenshot is required for grading if the main demo above is already included; optional captures are listed in the next section.
+
+### Optional screenshots (improvements)
+
+```bash
+./sshawk.sh --file samples/sample-auth.log --no-geo --quiet
+grep -E "2001:db8|Total failed" reports/ssh_report_*.md | tail -5
+```
+
+Shows IPv6 and updated totals in the generated report.
+
+```bash
+cat docs/SCHEDULING.md | head -25
+systemctl list-timers 2>/dev/null | grep sshawk || echo "(timer not installed on demo vm)"
+```
+
+Shows cron/systemd integration documentation (timer install is optional on the lab VM).
 
 ---
 
@@ -174,10 +203,9 @@ Real auth logs can contain sensitive data. We only committed a **fake** sample l
 
 ## Possible improvements
 
-- IPv6 support
-- more log patterns (careful with false positives)
-- JSON output
-- optional cron/systemd timer for regular reports
+- JSON export for other tools
+- HTML report template
+- streaming parser for very large log files
 
 ---
 
