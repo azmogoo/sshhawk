@@ -31,9 +31,10 @@ fi
 grep -q "203.0.113.45" "${TMP_REPORT}"
 grep -q "198.51.100.23" "${TMP_REPORT}"
 grep -q "192.0.2.77" "${TMP_REPORT}"
+grep -q "2001:db8::1" "${TMP_REPORT}"
 
-# expect 6 failed attempts total
-grep -q "| Total failed attempts | 6 |" "${TMP_REPORT}"
+# expect 7 failed attempts total (includes ipv6 sample line)
+grep -q "| Total failed attempts | 7 |" "${TMP_REPORT}"
 
 grep -q "admin" "${TMP_REPORT}"
 grep -q "root" "${TMP_REPORT}"

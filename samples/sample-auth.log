@@ -6,6 +6,7 @@ May 20 08:12:05 lab-server sshd[12001]: Failed password for invalid user admin f
 May 20 08:13:01 lab-server sshd[12002]: Failed password for root from 198.51.100.23 port 52344 ssh2
 May 20 08:13:03 lab-server sshd[12002]: Failed password for root from 198.51.100.23 port 52344 ssh2
 May 20 08:14:10 lab-server sshd[12003]: authentication failure; logname= uid=0 euid=0 tty=ssh ruser= rhost=192.0.2.77 user=deploy
+May 20 08:14:30 lab-server sshd[12006]: Failed password for invalid user ipv6user from 2001:db8::1 port 42901 ssh2
 
 # should not be counted
 May 20 08:15:11 lab-server sshd[12004]: Accepted password for test from 198.51.100.23 port 52344 ssh2
