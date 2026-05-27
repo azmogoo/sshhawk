@@ -225,14 +225,44 @@ extract_failed_attempts() {
   local in_file="$1"
   local out_file="$2"
 
-  # common openssh failure patterns
+  # common openssh failure patterns (keep sshd filter to limit false positives)
   local patterns
-  patterns='Failed password for|Failed publickey|Invalid user|authentication failure|Unable to negotiate|Disconnected from authenticating user|Connection closed by.*preauth'
+  patterns='Failed password for|Failed publickey|Failed none for|Invalid user|authentication failure|Unable to negotiate|Disconnected from authenticating user|Connection closed by.*preauth|maximum authentication attempts exceeded|keyboard-interactive authentication failed|Failed keyboard-interactive|Received disconnect.*[Pp]reauth|Received disconnect.*[Aa]uthentication'
 
   : > "${out_file}"
 
   # ssh/sshd lines only; || true avoids errexit on no match
   grep -Ei "${patterns}" "${in_file}" 2>/dev/null | grep -E 'sshd|ssh\[' >> "${out_file}" || true
+}
+
+# pull ipv4/ipv6 from typical openssh log formats
+extract_ip_from_line() {
+  local line="$1"
+  local ip=""
+
+  # "from <ip> port" (works for ipv4 and ipv6)
+  if [[ "${line}" =~ [Ff]rom[[:space:]]+([^[:space:]]+)[[:space:]]+port ]]; then
+    ip="${BASH_REMATCH[1]}"
+    ip="${ip//[\[\]]/}"
+    printf '%s' "${ip}"
+    return 0
+  fi
+
+  # pam style: rhost=...
+  if [[ "${line}" =~ rhost=([^[:space:]]+) ]]; then
+    ip="${BASH_REMATCH[1]}"
+    ip="${ip//[\[\]]/}"
+    printf '%s' "${ip}"
+    return 0
+  fi
+
+  # fallback ipv4 anywhere in the line
+  if [[ "${line}" =~ ([0-9]{1,3}\.){3}[0-9]{1,3} ]]; then
+    printf '%s' "${BASH_REMATCH[0]}"
+    return 0
+  fi
+
+  return 1
 }
 
 # one log line -> "ip|user|timestamp" (or nothing if no ip)
@@ -245,10 +275,7 @@ parse_log_line() {
   # syslog ts (best effort): "May 20 08:12:01"
   ts="$(printf '%s' "${line}" | awk '{print $1, $2, $3}' | head -n 1)"
 
-  # ipv4 in line
-  if [[ "${line}" =~ ([0-9]{1,3}\.){3}[0-9]{1,3} ]]; then
-    ip="${BASH_REMATCH[0]}"
-  fi
+  ip="$(extract_ip_from_line "${line}" || true)"
 
   # try several regexes (order matters: invalid user before plain user)
   if [[ "${line}" =~ [Ff]ailed[[:space:]]+password[[:space:]]+for[[:space:]]+invalid[[:space:]]+user[[:space:]]+([^[:space:]]+) ]]; then
@@ -342,6 +369,15 @@ geolocate_ip() {
     GEO_CACHE["${ip}"]="Local/Private|N/A|N/A|N/A|N/A"
     echo "${GEO_CACHE[${ip}]}"
     return 0
+  fi
+
+  # ipv6 local/documentation style ranges
+  if [[ "${ip}" == *:* ]]; then
+    if [[ "${ip}" =~ ^fe80: ]] || [[ "${ip}" =~ ^::1$ ]] || [[ "${ip}" =~ ^fc ]] || [[ "${ip}" =~ ^fd ]] || [[ "${ip}" =~ ^2001:db8 ]]; then
+      GEO_CACHE["${ip}"]="Local/Private|N/A|N/A|N/A|N/A"
+      echo "${GEO_CACHE[${ip}]}"
+      return 0
+    fi
   fi
 
   url="${GEO_API_URL}/${ip}?fields=status,country,regionName,city,isp,query"
