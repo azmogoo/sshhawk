@@ -1,0 +1,34 @@
+SSHawk Security Report
+ssh log analyzer and reporting tool
+
+Generated: 2026-06-04 09:54:31
+Hostname : ip-172-31-34-36
+Source   : samples/sample-auth.log
+Total failed attempts : 7
+Unique attacking IPs  : 4
+
+Top attacking IPs:
+  1. 203.0.113.45 (3 attempts) May 20 08:12:01 -> May 20 08:12:05
+     Location: Unknown, Unknown, Unknown | ISP: Unknown
+  2. 198.51.100.23 (2 attempts) May 20 08:13:01 -> May 20 08:13:03
+     Location: Unknown, Unknown, Unknown | ISP: Unknown
+  3. 2001:db8::1 (1 attempts) May 20 08:14:30 -> May 20 08:14:30
+     Location: Unknown, Unknown, Unknown | ISP: Unknown
+  4. 192.0.2.77 (1 attempts) May 20 08:14:10 -> May 20 08:14:10
+     Location: Unknown, Unknown, Unknown | ISP: Unknown
+
+Top targeted usernames:
+  admin (3 attempts)
+  root (2 attempts)
+  ipv6user (1 attempts)
+  deploy (1 attempts)
+
+Observations:
+Detected 7 failed SSH authentication event(s) from 4 unique IP address(es). Multiple distinct sources may indicate automated scanning.
+
+Recommendations:
+- Use SSH keys and disable password authentication where possible.
+- Install and configure fail2ban to automatically block repeated offenders.
+- Restrict SSH access by IP (firewall) or other network-level controls if feasible.
+- Keep the system and OpenSSH updated with security patches.
+- Changing the default SSH port is optional and only a minor deterrent.

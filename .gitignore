@@ -1,6 +1,8 @@
-# Generated reports (keep directory via .gitkeep)
-reports/*.md
-reports/*.txt
+# Generated reports at runtime (examples/ is versioned for the teacher)
+reports/*
+!reports/.gitkeep
+!reports/examples/
+!reports/examples/**
 
 # LaTeX build artifacts (sources in docs/)
 docs/*.aux

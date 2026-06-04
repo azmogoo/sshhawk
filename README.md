@@ -92,6 +92,10 @@ Real SSH logs can contain sensitive information (usernames, IP addresses, and ot
 SSHawk only **reads logs** and **generates a report**. Do not upload reports or raw logs to public places if they may reveal personal or confidential data.
 For the repository, only a fake sample log is included.
 
+## Sample reports (for reviewers)
+
+Example outputs on the fake log are committed under [`reports/examples/`](reports/examples/) (Markdown and text).
+
 ## How reports are generated
 
 - Default output directory is `reports/`
@@ -130,7 +134,9 @@ sshhawk/
 │   ├── PROJECT_REPORT.tex
 │   ├── screenshots/        # figures for the report
 │   └── assets/             # JUNIA logo (cover page)
-└── reports/                # generated locally (.gitignore)
+└── reports/
+    ├── examples/           # sample reports (Markdown + text)
+    └── …                   # other outputs ignored by Git
 ```
 
 ## Authors
