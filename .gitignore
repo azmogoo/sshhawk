@@ -2,6 +2,17 @@
 reports/*.md
 reports/*.txt
 
+# LaTeX build artifacts (sources in docs/)
+docs/*.aux
+docs/*.log
+docs/*.out
+docs/*.toc
+docs/*.lof
+docs/*.pdf
+docs/*.fdb_latexmk
+docs/*.fls
+docs/*.synctex.gz
+
 # Runtime / temp files
 *.tmp
 *.swp

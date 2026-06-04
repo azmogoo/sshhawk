@@ -1,0 +1,608 @@
+% Rapport de projet SSHawk — ISEN AP3 Introduction à Linux
+% Compilation : voir docs/COMPILE_REPORT.md
+
+\documentclass[11pt,a4paper]{article}
+
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage{lmodern}
+\usepackage[french]{babel}
+\usepackage{geometry}
+\geometry{left=2.4cm, right=2.4cm, top=2.6cm, bottom=2.4cm, headheight=22pt}
+
+\usepackage{graphicx}
+\usepackage{float}
+\usepackage{booktabs}
+\usepackage{array}
+\usepackage{colortbl}
+\usepackage{hyperref}
+\usepackage[table]{xcolor}
+\usepackage{fancyhdr}
+\usepackage{titlesec}
+\usepackage{listings}
+\usepackage{caption}
+\captionsetup{
+  font=small,
+  labelfont={bf,color=juniapurple},
+  textfont={color=textdark}
+}
+\usepackage{needspace}
+\usepackage{etoolbox}
+\usepackage{enumitem}
+\usepackage{tcolorbox}
+\usepackage{tikz}
+\usetikzlibrary{calc,fadings,shapes.geometric,shadows.blur}
+\usepackage{microtype}
+
+\tcbuselibrary{skins,breakable}
+
+% --- Palette JUNIA (violet dominant, turquoise en accent) ---
+\definecolor{juniapurple}{RGB}{63, 42, 86}
+\definecolor{juniadark}{RGB}{42, 28, 58}
+\definecolor{junialight}{RGB}{245, 240, 250}
+\definecolor{juniaaccent}{RGB}{0, 168, 150}
+\definecolor{softgray}{RGB}{248, 250, 252}
+\definecolor{textdark}{RGB}{30, 45, 65}
+\definecolor{codebg}{RGB}{248, 247, 252}
+\definecolor{codeborder}{RGB}{210, 200, 222}
+\definecolor{tablehead}{RGB}{42, 28, 58}
+\definecolor{tablealt}{RGB}{245, 240, 250}
+\definecolor{sectionrule}{RGB}{210, 198, 225}
+% Alias (compatibilité avec le reste du fichier)
+\colorlet{isenblue}{juniapurple}
+\colorlet{isenaccent}{juniaaccent}
+\colorlet{isengrey}{softgray}
+\colorlet{isendark}{textdark}
+
+\hypersetup{
+  colorlinks=true,
+  linkcolor=juniapurple!85!black,
+  urlcolor=juniapurple!70!black,
+  citecolor=juniapurple!85!black,
+  pdftitle={SSHawk — Rapport de projet},
+  pdfauthor={WALLOIS, DAUVIN, CARPENTIER}
+}
+
+\graphicspath{{screenshots/}{assets/}}
+
+% --- Pagination : éviter titres orphelins (sauf section démo + captures) ---
+\clubpenalty=10000
+\widowpenalty=10000
+\displaywidowpenalty=10000
+
+\newif\ifdemosection
+\demosectionfalse
+
+% Saut de page explicite avant certaines sections (questions longues / démo)
+\newcommand{\NewSectionPage}{\clearpage}
+
+\newcommand{\SectionNeedspace}{\needspace{7\baselineskip}}
+\newcommand{\SubsectionNeedspace}{%
+  \ifdemosection
+    \needspace{3.5\baselineskip}% sous-section démo : titre + début de code seulement
+  \else
+    \needspace{6\baselineskip}%
+  \fi
+}
+
+\pretocmd{\section}{\SectionNeedspace}{}{}
+\pretocmd{\subsection}{\SubsectionNeedspace}{}{}
+
+\BeforeBeginEnvironment{pointbox}{\needspace{8\baselineskip}}
+\BeforeBeginEnvironment{alertbox}{\needspace{7\baselineskip}}
+\BeforeBeginEnvironment{table}{\needspace{11\baselineskip}}
+\BeforeBeginEnvironment{lstlisting}{%
+  \ifdemosection\else\needspace{5\baselineskip}\fi
+}
+\BeforeBeginEnvironment{itemize}{%
+  \ifdemosection\else\needspace{3\baselineskip}\fi
+}
+\BeforeBeginEnvironment{enumerate}{%
+  \ifdemosection\else\needspace{3\baselineskip}\fi
+}
+
+% --- En-têtes ---
+\pagestyle{fancy}
+\fancyhf{}
+\fancyhead[L]{\small\textcolor{juniapurple}{\textbf{SSHawk}} \textcolor{gray}{| Rapport AP3 Linux}}
+\fancyhead[R]{\small\textcolor{juniapurple}{\textbf{WALLOIS DAUVIN CARPENTIER}} \textcolor{gray}{| ISEN}}
+\fancyfoot[R]{\small\textcolor{juniapurple!55}{\thepage}}
+\fancyfoot[L]{\small\textcolor{gray}{2025--2026}}
+\renewcommand{\headrulewidth}{0.5pt}
+\renewcommand{\headrule}{\hbox to\headwidth{\color{juniapurple!35}\leaders\hrule height \headrulewidth\hfill}}
+
+% --- Sections numérotées (style « points ») ---
+\setcounter{secnumdepth}{3}
+\titleformat{\section}
+  {\Large\bfseries\color{juniapurple}}
+  {\colorbox{juniapurple}{\parbox[c][1.15em][c]{1.35em}{\centering\color{white}\bfseries\thesection}}}
+  {0.55em}
+  {}
+  [\vspace{0.2em}{\color{juniapurple!55}\titlerule[1.1pt]}]
+
+\titleformat{\subsection}
+  {\large\bfseries\color{textdark}}
+  {\textcolor{juniapurple}{\thesubsection}}{0.5em}{}
+  [\vspace{0.4em}{\color{sectionrule}\titlerule[0.4pt]}\vspace{0.55em}]
+\titlespacing*{\subsection}{0pt}{2.2ex plus 0.4ex minus .2ex}{1.4ex plus .2ex}
+
+\titleformat{\subsubsection}
+  {\normalsize\bfseries\color{juniapurple}}
+  {\thesubsubsection}{0.4em}{}
+
+% --- Encadrés ---
+\newtcolorbox{resumebox}{
+  enhanced,
+  colback=junialight,
+  colframe=juniapurple!40,
+  arc=3mm,
+  boxrule=0.7pt,
+  left=10pt, right=10pt, top=8pt, bottom=8pt,
+  borderline west={4pt}{0pt}{juniapurple},
+  borderline east={1.5pt}{0pt}{juniaaccent},
+  breakable
+}
+
+\newtcolorbox{pointbox}[1][]{
+  enhanced,
+  colback=white,
+  colframe=juniapurple!22,
+  arc=2mm,
+  boxrule=0.5pt,
+  left=8pt, right=8pt, top=5pt, bottom=5pt,
+  borderline west={3pt}{0pt}{juniapurple},
+  title={#1},
+  fonttitle=\bfseries\small\color{juniapurple},
+  breakable
+}
+
+\newtcolorbox{alertbox}{
+  enhanced,
+  colback=orange!3,
+  colframe=orange!60!black,
+  arc=2mm,
+  boxrule=0.6pt,
+  left=8pt, right=8pt, top=5pt, bottom=5pt,
+  breakable
+}
+
+% --- Listings ---
+\lstdefinestyle{bashstyle}{
+  backgroundcolor=\color{codebg},
+  basicstyle=\ttfamily\small,
+  breaklines=true,
+  frame=single,
+  rulecolor=\color{codeborder},
+  framerule=0.5pt,
+  xleftmargin=6pt,
+  numbers=none,
+  showstringspaces=false,
+  aboveskip=0.6em,
+  belowskip=0.6em
+}
+\lstset{style=bashstyle, language=bash}
+
+% --- Figures ---
+\newcommand{\screenshot}[4]{%
+  \begin{figure}[H]
+    \centering
+    \begin{tcolorbox}[colback=white,colframe=juniapurple!18,arc=2mm,boxrule=0.5pt,
+      left=2pt,right=2pt,top=2pt,bottom=2pt]
+      \includegraphics[width=#1\textwidth]{#2}
+    \end{tcolorbox}
+    \caption[#3]{#4}
+    \label{fig:#2}
+  \end{figure}
+}
+
+% --- Tables colorées ---
+\newcommand{\tableheadrow}{\rowcolor{tablehead}\color{white}\bfseries}
+
+% --- Page de garde ---
+\newlength{\covercardwidth}
+\setlength{\covercardwidth}{0.84\paperwidth}
+
+% Badge filière (fond clair + texte violet — lisible sur bandeau violet)
+\newcommand{\coverApBadge}{%
+  \node[
+    anchor=center,
+    fill=white!96,
+    draw=juniapurple!55,
+    line width=0.45pt,
+    rounded corners=5pt,
+    inner xsep=22pt,
+    inner ysep=4pt,
+    minimum width=3.5cm,
+    align=center,
+    text=juniapurple,
+    font=\bfseries\footnotesize
+  ] at ([yshift=-4.55cm]current page.north) {ISEN AP3};%
+}
+
+\newcommand{\coverYearTag}{%
+  \begingroup
+  \centering
+  \colorbox{junialight}{%
+    \parbox{0.58\linewidth}{%
+      \centering\small\color{juniapurple!80}\textbf{Rapport de projet · Année 2025--2026}%
+    }%
+  }%
+  \endgroup
+}
+
+\newcommand{\coverInfoBlock}[2]{%
+  \begin{minipage}[t]{0.47\linewidth}
+    \begin{tcolorbox}[
+      enhanced, colback=junialight, colframe=juniapurple!14,
+      arc=3mm, boxrule=0.35pt,
+      left=7pt, right=7pt, top=7pt, bottom=7pt,
+      borderline west={3pt}{0pt}{juniapurple}
+    ]
+      \centering
+      \textbf{\color{textdark}#1}\\[0.22cm]
+      #2
+    \end{tcolorbox}
+  \end{minipage}%
+}
+
+\newcommand{\coverMainCard}{%
+  \begin{tcolorbox}[
+    enhanced, width=\linewidth, arc=6mm,
+    colback=white, colframe=juniapurple!10, boxrule=0.45pt,
+    drop fuzzy shadow,
+    left=20pt, right=18pt, top=18pt, bottom=18pt,
+    borderline west={8pt}{0pt}{juniapurple}
+  ]
+    \centering
+    {\fontsize{8}{9.5}\selectfont
+      \color{juniapurple!75}\textbf{PROJET AP3 --- INTRODUCTION À LINUX}}\\[0.5cm]
+    {\fontsize{30}{34}\selectfont\bfseries\color{juniapurple} SSHawk}\\[0.32cm]
+    {\color{juniapurple!50}\rule{0.48\linewidth}{0.75pt}}\\[0.38cm]
+    {\Large\color{textdark} Analyse des tentatives SSH échouées}\\[0.5cm]
+    \coverYearTag\\[0.65cm]
+    \begin{minipage}{\linewidth}
+      \coverInfoBlock{Équipe}{%
+        {\normalsize Arthur WALLOIS}\\[0.1cm]
+        {\normalsize Victor DAUVIN}\\[0.1cm]
+        {\normalsize Francois CARPENTIER}%
+      }\hfill
+      \coverInfoBlock{Encadrant}{%
+        {\large\color{juniapurple}\bfseries Monsieur CAPIOD}%
+      }
+    \end{minipage}
+  \end{tcolorbox}%
+}
+
+\newcommand{\maketitlepage}{%
+  \thispagestyle{empty}
+  \begin{tikzpicture}[remember picture,overlay]
+    % Fond clair + bandeau violet (~38 % de la page)
+    \fill[softgray] (current page.south west) rectangle (current page.north east);
+    \shade[top color=juniapurple, bottom color=juniadark]
+      (current page.north west) rectangle ([yshift=-11.3cm]current page.north east);
+
+    % Décorations légères (violet / blanc)
+    \fill[white, opacity=0.06] ([xshift=1.2cm,yshift=-2cm]current page.north east) circle (2.6cm);
+    \fill[juniapurple, opacity=0.07] ([xshift=-1cm,yshift=-9cm]current page.west) circle (3.2cm);
+    \draw[white, opacity=0.12, line width=0.6pt]
+      ([yshift=-4.5cm,xshift=2cm]current page.west) -- ([yshift=-8cm,xshift=6cm]current page.west);
+    \draw[juniapurple!25, line width=0.5pt]
+      ([yshift=-3cm,xshift=-2cm]current page.east) -- ([yshift=-7.5cm,xshift=-7cm]current page.east);
+
+    % En-tête : logo + badge discret
+    \node[inner sep=0] at ([yshift=-2.5cm]current page.north) {%
+      \includegraphics[height=1.7cm]{logo-junia-officiel.png}%
+    };
+    \coverApBadge
+    \node[text=white!88, font=\large\bfseries] at ([yshift=-6.2cm]current page.north)
+      {Introduction à Linux};
+
+    % Carte principale (chevauche bandeau violet et fond clair)
+    \node[anchor=center, inner sep=0] at ([yshift=-13.1cm]current page.north) {%
+      \begin{minipage}{\covercardwidth}
+        \coverMainCard
+      \end{minipage}%
+    };
+
+    % Pied de page
+    \node[text=juniapurple!55, font=\small] at ([yshift=1.9cm]current page.south) {%
+      JUNIA · ISEN --- Grande école d'ingénieurs du numérique%
+    };
+  \end{tikzpicture}
+  \vspace*{\fill}
+  \newpage
+}
+
+\begin{document}
+\maketitlepage
+
+% --- Résumé ---
+\section*{Résumé}
+\addcontentsline{toc}{section}{Résumé}
+\markboth{Résumé}{Résumé}
+\needspace{10\baselineskip}
+
+\begin{resumebox}
+Nous avons développé \textbf{SSHawk}, un script Bash qui parcourt les journaux d'authentification SSH,
+repère les connexions refusées et produit un rapport synthétique (adresses IP, comptes testés, statistiques).
+L'outil s'appuie sur les outils classiques du module (\texttt{grep}, \texttt{awk}, \texttt{curl}\ldots) et reste
+\textbf{strictement en lecture seule} : il n'altère ni SSH ni le pare-feu. Les démonstrations de ce rapport
+utilisent un fichier d'exemple fictif ; nous n'avons pas versionné de logs réels.
+\end{resumebox}
+
+\tableofcontents
+\clearpage
+\needspace{15\baselineskip}
+{\hypersetup{linkcolor=black}\listoffigures}
+\clearpage
+
+% =============================================================================
+\section{Contexte du projet}
+\needspace{4\baselineskip}
+
+Dans le cadre du module \emph{Introduction à Linux} (Monsieur CAPIOD), nous devions produire un script Bash
+exploitant les outils du terminal sur un cas concret. Nous avons développé \textbf{SSHawk} pour analyser
+automatiquement les tentatives SSH échouées dans les journaux système.
+
+\begin{pointbox}[Objectifs]
+  \begin{itemize}[leftmargin=*,noitemsep]
+    \item Lire \texttt{auth.log}, \texttt{journalctl} ou un fichier de test ;
+    \item Extraire les IP et identifiants concernés, puis agréger les statistiques ;
+    \item Produire un rapport Markdown ou texte (\texttt{reports/}), en lecture seule.
+  \end{itemize}
+\end{pointbox}
+
+% =============================================================================
+\section{Pourquoi les logs SSH ?}
+
+Sur notre VM de développement, le service SSH est actif : en quelques heures, les journaux contiennent déjà
+des tentatives depuis des IP variées. Ce n'est pas forcément une attaque ciblée ; la plupart du temps, ce sont
+des robots qui scannent le port 22. Malgré tout, savoir \emph{qui} est visé (\texttt{root}, \texttt{admin}\ldots)
+et \emph{depuis où} aide à décider si l'on durcit la configuration ou si l'on contacte l'administrateur réseau.
+
+Ce sujet nous a permis de mobiliser exactement ce que le cours met en avant :
+\begin{itemize}[leftmargin=*]
+  \item manipulation de fichiers système et droits (\texttt{sudo} pour \texttt{auth.log}) ;
+  \item chaînage \texttt{grep} / \texttt{awk} / \texttt{sort} / \texttt{uniq} ;
+  \item structuration d'un script Bash (fonctions, options, gestion d'erreurs avec \texttt{set -euo pipefail}) ;
+  \item un premier contact avec \texttt{curl} et une API HTTP publique pour la géolocalisation.
+\end{itemize}
+
+% =============================================================================
+\section{Compétences Linux mobilisées}
+
+\begin{table}[H]
+  \centering
+  \caption{Outils et notions utilisés dans SSHawk}
+  \rowcolors{2}{white}{tablealt}
+  \begin{tabular}{@{}>{\bfseries}p{2.8cm}p{10cm}@{}}
+    \tableheadrow
+    Domaine & Utilisation dans SSHawk \\
+    \midrule
+    Shell Bash & Fonctions modulaires, options CLI, \texttt{trap}, fichiers temporaires \\
+    Traitement texte & \texttt{grep}, \texttt{awk}, \texttt{sed}, \texttt{sort}, \texttt{uniq} \\
+    Journaux & \texttt{auth.log}, \texttt{journalctl} (\texttt{ssh}/\texttt{sshd}) \\
+    Réseau & \texttt{curl} et API \texttt{ip-api.com} (cache, délai entre requêtes) \\
+    Qualité & \texttt{config/sshawk.conf}, \texttt{tests/test\_sample\_log.sh}, rapports horodatés \\
+    \bottomrule
+  \end{tabular}
+\end{table}
+
+% =============================================================================
+\NewSectionPage
+\section{Ce que disent les logs SSH}
+\Needspace{18\baselineskip}
+
+OpenSSH écrit dans syslog des messages normalisés. SSHawk se concentre sur les lignes qui signalent un échec,
+par exemple :
+
+\begin{itemize}[leftmargin=*]
+  \item \texttt{Failed password for ... from} une adresse IP
+  \item \texttt{Invalid user ... from} une adresse IP
+  \item \texttt{Failed publickey for ...}
+  \item \texttt{authentication failure} avec \texttt{user=...}
+\end{itemize}
+
+Chaque événement peut contenir une IPv4, une IPv6 (\texttt{2001:db8::1} dans notre sample), un identifiant
+et un horodatage. Le script isole d'abord les lignes \texttt{sshd}, puis applique plusieurs expressions régulières
+car le format exact change légèrement selon le type d'échec.
+
+% =============================================================================
+\section{Fonctionnement de SSHawk}
+
+\subsection{Chaîne de traitement}
+
+\begin{enumerate}[leftmargin=*]
+  \item \textbf{Entrée} — selon \texttt{--source} : fichier local, \texttt{auth.log} ou flux \texttt{journalctl}.
+  \item \textbf{Filtrage} — conservation des messages d'échec connus (mot de passe, clé, utilisateur invalide\ldots).
+  \item \textbf{Parsing} — pour chaque ligne : IP via \texttt{extract\_ip\_from\_line}, utilisateur si présent.
+  \item \textbf{Agrégation} — totaux par IP, fenêtre temporelle, classement des comptes les plus ciblés.
+  \item \textbf{Géolocalisation} — optionnelle (\texttt{--no-geo} pour les tests) avec temporisation entre requêtes.
+  \item \textbf{Sortie} — rapport horodaté dans \texttt{reports/} (format \texttt{md} ou \texttt{txt}).
+\end{enumerate}
+
+\subsection{Organisation du code}
+
+Le cœur du projet est \texttt{sshawk.sh} : plutôt qu'un seul bloc de commandes, nous avons découpé le script
+en fonctions (\texttt{collect\_logs}, \texttt{parse\_log\_line}, \texttt{generate\_report}\ldots) pour faciliter
+les tests et la relecture. Un fichier \texttt{config/sshawk.conf} centralise les chemins par défaut.
+
+\subsection{Extensions prévues au-delà du minimum}
+
+\begin{itemize}[leftmargin=*]
+  \item Prise en charge IPv6 et patterns supplémentaires (\texttt{keyboard-interactive}, etc.) ;
+  \item Script \texttt{run\_scheduled\_report.sh} et exemples systemd/cron (\texttt{systemd/}, \texttt{scripts/}) pour
+        lancer un rapport périodique sur un serveur de test.
+\end{itemize}
+
+% =============================================================================
+\NewSectionPage
+\section{Démonstration sur la VM}
+\demosectiontrue
+
+Les captures ci-dessous proviennent de notre environnement Ubuntu (SSH distant). Nous avons travaillé avec
+\texttt{samples/sample-auth.log} pour des résultats reproductibles, sans exposer de vraies adresses.
+
+\subsection{Aide en ligne de commande}
+
+\begin{lstlisting}
+./sshawk.sh --help
+\end{lstlisting}
+\screenshot{0.92}{capture1.png}{Aide CLI}{Options principales du script (\texttt{--help}).}
+
+\subsection{Première exécution sur le fichier d'exemple}
+
+\begin{lstlisting}
+./sshawk.sh --file samples/sample-auth.log --no-geo
+\end{lstlisting}
+\screenshot{0.88}{capture2.png}{Analyse du sample}{Détection des échecs et création d'un rapport dans \texttt{reports/}.}
+
+\subsection{Validation automatique}
+
+\begin{lstlisting}
+./tests/test_sample_log.sh
+\end{lstlisting}
+Le script de test contrôle le nombre de tentatives (7), la présence de \texttt{2001:db8::1} et affiche \texttt{test ok.}
+\screenshot{0.75}{capture3.png}{Tests}{Sortie du test unitaire sur le sample.}
+
+\subsection{Rapports produits}
+
+\begin{lstlisting}
+ls -la reports/
+\end{lstlisting}
+\screenshot{0.88}{capture4a.png}{Dossier reports}{Fichiers horodatés générés à chaque lancement.}
+
+\begin{lstlisting}
+head -40 "$(ls -1t reports/ssh_report_*.md | head -1)"
+\end{lstlisting}
+\screenshot{0.92}{capture4b.png}{Extrait Markdown}{Tableau récapitulatif dans le rapport \texttt{.md}.}
+
+\subsection{Format texte et mode debug}
+
+\begin{lstlisting}
+./sshawk.sh --file samples/sample-auth.log --no-geo \
+  --format text --output /tmp/demo.txt
+cat /tmp/demo.txt
+\end{lstlisting}
+\screenshot{0.90}{capture5.png}{Format texte}{Rapport lisible directement dans le terminal.}
+
+\begin{lstlisting}
+./sshawk.sh --file samples/sample-auth.log --no-geo --debug
+\end{lstlisting}
+\screenshot{0.90}{capture6.png}{Debug}{Messages de diagnostic avec \texttt{--debug}.}
+
+\subsection{Vérification IPv6}
+
+\begin{lstlisting}
+./sshawk.sh --file samples/sample-auth.log --no-geo --quiet
+head -25 "$(ls -1t reports/ssh_report_*.md | head -1)"
+\end{lstlisting}
+\screenshot{0.92}{capture7.png}{IPv6}{Sept échecs, quatre IP dont \texttt{2001:db8::1}.}
+
+\demosectionfalse
+% =============================================================================
+\section{Résultats obtenus}
+
+Le fichier \texttt{samples/sample-auth.log} ne contient que des adresses de documentation
+(RFC 5737 et IPv6 \texttt{2001:db8::/32}), ce qui nous permet de montrer le comportement du script
+sans fuite de données.
+
+\begin{table}[H]
+  \centering
+  \caption{Synthèse sur le jeu de test}
+  \rowcolors{2}{white}{tablealt}
+  \begin{tabular}{@{}lr@{}}
+    \tableheadrow
+    Indicateur & Valeur \\
+    \midrule
+    Tentatives échouées & 7 \\
+    IP sources distinctes & 4 \\
+    Compte le plus visé & \texttt{admin} (3 fois) \\
+    IP la plus active & \texttt{203.0.113.45} (3 fois) \\
+    Exemple IPv6 détecté & \texttt{2001:db8::1} \\
+    \bottomrule
+  \end{tabular}
+\end{table}
+
+Ces chiffres correspondent à ce que nous avions construit manuellement dans le sample : le test automatique
+confirme que le parsing et l'agrégation restent cohérents après chaque modification du script.
+
+% =============================================================================
+\NewSectionPage
+\section{Difficultés et ce que nous en avons retiré}
+\Needspace{16\baselineskip}
+
+\begin{pointbox}[Points techniques]
+  \begin{itemize}[leftmargin=*]
+    \item \textbf{journalctl} — le nom de l'unité change (\texttt{ssh} vs \texttt{sshd}) ; nous testons les deux.
+    \item \textbf{Formats hétérogènes} — le nom d'utilisateur n'apparaît pas toujours au même endroit dans la ligne.
+    \item \textbf{Mode strict Bash} — le \texttt{trap} de fin devait gérer \texttt{\$\{tmpdir:-\}} pour éviter un crash avec \texttt{set -u}.
+    \item \textbf{API de géoloc} — parfois \texttt{Unknown} ; nous utilisons \texttt{--no-geo} en démo pour ne pas dépendre du réseau.
+    \item \textbf{Captures d'écran} — \texttt{head reports/*.md} mélange tous les fichiers ; nous ciblons le plus récent avec \texttt{ls -1t}.
+  \end{itemize}
+\end{pointbox}
+
+\needspace{5\baselineskip}
+Au-delà des bugs, ce projet nous a habitués à lire de vrais messages syslog et à documenter nos choix
+(README, tests, rapport) comme on le ferait sur un petit outil d'équipe.
+
+% =============================================================================
+\section{Confidentialité}
+
+\begin{alertbox}
+Les journaux d'un serveur en production peuvent révéler des IP réelles, des comptes internes ou des plages horaires sensibles.
+Nous avons volontairement limité le dépôt Git au fichier \texttt{sample-auth.log} et aux rapports générés localement
+(ignorés par \texttt{.gitignore}). SSHawk \textbf{n'écrit jamais} dans \texttt{/etc/ssh} ni ne bloque d'adresse :
+il produit uniquement un rapport à consulter.
+\end{alertbox}
+
+% =============================================================================
+\section{Conclusion}
+\needspace{6\baselineskip}
+
+SSHawk remplit l'objectif fixé pour ce module : un outil Bash lisible, testé sur un échantillon contrôlé,
+capable d'analyser les échecs SSH et de restituer l'essentiel en quelques secondes.
+Nous avons couvert les sources de logs demandées, l'agrégation, la géolocalisation optionnelle, le support IPv6
+et une piste de planification (cron/systemd) pour aller plus loin sur un serveur personnel.
+
+Le projet est documenté dans le dépôt du groupe. Pour reproduire les captures :
+\begin{lstlisting}
+./sshawk.sh --file samples/sample-auth.log --no-geo
+./tests/test_sample_log.sh
+\end{lstlisting}
+
+\needspace{9\baselineskip}
+\vspace{0.8em}
+\begin{center}
+  \begin{tcolorbox}[colback=junialight,colframe=juniapurple!35,arc=2mm,width=0.85\textwidth,boxrule=0.6pt,
+    borderline west={3pt}{0pt}{juniapurple}]
+    \centering
+    \small
+    \textbf{Arthur WALLOIS} \enspace$\cdot$\enspace
+    \textbf{Victor DAUVIN} \enspace$\cdot$\enspace
+    \textbf{Francois CARPENTIER}\\[0.2cm]
+    \textcolor{gray}{Module Introduction à Linux — Encadrant : Monsieur CAPIOD — ISEN AP3}
+  \end{tcolorbox}
+\end{center}
+
+% =============================================================================
+\NewSectionPage
+\appendix
+\section{Arborescence du dépôt}
+\Needspace{14\baselineskip}
+
+\begin{verbatim}
+sshhawk/
+|-- PROJECT_REPORT.pdf
+|-- README.md
+|-- sshawk.sh
+|-- config/sshawk.conf
+|-- samples/sample-auth.log
+|-- tests/test_sample_log.sh
+|-- scripts/run_scheduled_report.sh
+|-- systemd/sshawk-report.{service,timer}
+|-- docs/ (sources LaTeX, README, captures)
+`-- reports/ (genere localement, non versionne)
+\end{verbatim}
+
+\end{document}

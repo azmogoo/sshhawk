@@ -110,21 +110,27 @@ For the repository, only a fake sample log is included.
 
 ```text
 sshhawk/
+├── PROJECT_REPORT.pdf      # AP3 project report (French, PDF)
 ├── README.md
 ├── LICENSE
-├── .gitignore
 ├── sshawk.sh
 ├── config/
 │   └── sshawk.conf
 ├── samples/
 │   └── sample-auth.log
-├── reports/
-│   └── .gitkeep
+├── tests/
+│   └── test_sample_log.sh
+├── scripts/
+│   └── run_scheduled_report.sh
+├── systemd/
+│   ├── sshawk-report.service
+│   └── sshawk-report.timer
 ├── docs/
-│   ├── PROJECT_REPORT.md
-│   └── DEMO.md
-└── tests/
-    └── test_sample_log.sh
+│   ├── README.md           # how to build the report
+│   ├── PROJECT_REPORT.tex
+│   ├── screenshots/        # figures for the report
+│   └── assets/             # JUNIA logo (cover page)
+└── reports/                # generated locally (.gitignore)
 ```
 
 ## Authors
@@ -133,7 +139,11 @@ sshhawk/
 - Victor DAUVIN
 - Francois CARPENTIER
 
-Project report: [`docs/PROJECT_REPORT.md`](docs/PROJECT_REPORT.md)
+Project report (PDF): [`PROJECT_REPORT.pdf`](PROJECT_REPORT.pdf) — LaTeX sources in [`docs/`](docs/README.md).
+
+## Optional scheduling
+
+Periodic reports: use `scripts/run_scheduled_report.sh` with **cron** or the **systemd** units in `systemd/` (adjust paths in the service file first).
 
 ## Limitations
 
