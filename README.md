@@ -48,7 +48,7 @@ If some commands are missing, install with your course instructions (for example
 
 ```bash
 cd /path/to/work
-git clone <your-repo-url> sshhawk
+git clone https://github.com/azmogoo/sshhawk.git
 cd sshhawk
 chmod +x sshawk.sh
 chmod +x tests/test_sample_log.sh
@@ -117,6 +117,7 @@ sshhawk/
 ├── PROJECT_REPORT.pdf      # AP3 project report (French, PDF)
 ├── README.md
 ├── LICENSE
+├── .gitignore
 ├── sshawk.sh
 ├── config/
 │   └── sshawk.conf
@@ -164,5 +165,5 @@ Periodic reports: use `scripts/run_scheduled_report.sh` with **cron** or the **s
 - Support IPv6 addresses (more parsing work).
 - Stream logs without storing large temporary files.
 - Add an optional HTML report template.
-- Integrate with `cron` or a `systemd` timer for periodic reporting (if allowed by the course).
+- Extend the optional `cron` / `systemd` scheduling setup documented above.
 
