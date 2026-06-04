@@ -196,7 +196,8 @@
 }
 
 % --- Tables colorées ---
-\newcommand{\tableheadrow}{\rowcolor{tablehead}\color{white}\bfseries}
+\newcommand{\tableheadrow}{\rowcolor{tablehead}}
+\newcommand{\tableheadcell}[1]{\textcolor{white}{\bfseries #1}}
 
 % --- Page de garde ---
 \newlength{\covercardwidth}
@@ -375,15 +376,15 @@ Ce sujet nous a permis de mobiliser exactement ce que le cours met en avant :
   \centering
   \caption{Outils et notions utilisés dans SSHawk}
   \rowcolors{2}{white}{tablealt}
-  \begin{tabular}{@{}>{\bfseries}p{2.8cm}p{10cm}@{}}
+  \begin{tabular}{@{}p{2.8cm}p{10cm}@{}}
     \tableheadrow
-    Domaine & Utilisation dans SSHawk \\
+    \tableheadcell{Domaine} & \tableheadcell{Utilisation dans SSHawk} \\
     \midrule
-    Shell Bash & Fonctions modulaires, options CLI, \texttt{trap}, fichiers temporaires \\
-    Traitement texte & \texttt{grep}, \texttt{awk}, \texttt{sed}, \texttt{sort}, \texttt{uniq} \\
-    Journaux & \texttt{auth.log}, \texttt{journalctl} (\texttt{ssh}/\texttt{sshd}) \\
-    Réseau & \texttt{curl} et API \texttt{ip-api.com} (cache, délai entre requêtes) \\
-    Qualité & \texttt{config/sshawk.conf}, \texttt{tests/test\_sample\_log.sh}, rapports horodatés \\
+    \textbf{Shell Bash} & Fonctions modulaires, options CLI, \texttt{trap}, fichiers temporaires \\
+    \textbf{Traitement texte} & \texttt{grep}, \texttt{awk}, \texttt{sed}, \texttt{sort}, \texttt{uniq} \\
+    \textbf{Journaux} & \texttt{auth.log}, \texttt{journalctl} (\texttt{ssh}/\texttt{sshd}) \\
+    \textbf{Réseau} & \texttt{curl} et API \texttt{ip-api.com} (cache, délai entre requêtes) \\
+    \textbf{Qualité} & \texttt{config/sshawk.conf}, \texttt{tests/test\_sample\_log.sh}, rapports horodatés \\
     \bottomrule
   \end{tabular}
 \end{table}
@@ -513,7 +514,7 @@ sans fuite de données.
   \rowcolors{2}{white}{tablealt}
   \begin{tabular}{@{}lr@{}}
     \tableheadrow
-    Indicateur & Valeur \\
+    \tableheadcell{Indicateur} & \tableheadcell{Valeur} \\
     \midrule
     Tentatives échouées & 7 \\
     IP sources distinctes & 4 \\
